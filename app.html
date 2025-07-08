@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Aplikasi Berkas Masuk Kakan by H@nie</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+
+@media only screen and (max-width: 768px) {
+  body {
+    padding: 10px;
+    margin: 0 auto;
+    box-sizing: border-box;
+  }
+}
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: #f4faff;
+    }
+    .header {
+      display: flex; justify-content: space-between; align-items: center;
+      background-image: url('bg_kakan.jpg'); background-size: cover; background-position: center;
+      padding: 16px 24px; border-radius: 16px; margin-bottom: 24px;
+      position: relative; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .header::before {
+      content: ''; position: absolute; top: 0; left: 0;
+      width: 100%; height: 100%; background: rgba(0,0,0,0.35);
+      z-index: 0; border-radius: 16px;
+    }
+    .header-content {
+      display: flex; align-items: center; gap: 16px;
+      position: relative; z-index: 1;
+    }
+    .header-content h1 {
+      color: white; font-size: 26px; margin: 0;
+      text-shadow: 1px 1px 3px rgba(0,0,0,0.4);
+    }
+    .header img.logo {
+      height: 60px;
+      border-radius: 8px;
+      background: white;
+      padding: 4px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      position: relative;
+      z-index: 1;
+    }
+    .controls {
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    input[type="text"], select {
+      padding: 8px;
+      font-size: 14px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+    button {
+      background: linear-gradient(135deg, #3498db, #2ecc71);
+      border: none;
+      color: white;
+      padding: 10px 16px;
+      font-weight: bold;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s ease-in-out;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: 'Segoe UI', sans-serif;
+      font-size: 14px;
+    }
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+    }
+    button:active {
+      transform: translateY(1px);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: linear-gradient(rgba(255,255,255,0.88), rgba(255,255,255,0.88)), url('bg_tabel.jpg') center/cover no-repeat;
+      font-size: 14px;
+    }
+    th, td {
+      border: 1px solid #444;
+      padding: 8px;
+      text-align: center;
+      word-wrap: break-word;
+      max-width: 220px;
+    }
+    th {
+      background-color: #2980b9;
+      color: white;
+      position: sticky;
+      top: 0;
+    }
+    tr.selesai { background-color: #e0f8e9; }
+    tr.revisi { background-color: #fff8dc; }
+    tr.baru { background-color: #d0ecff; }
+    .pagination { text-align: center; margin-top: 15px; }
+    .pagination button { margin: 0 3px; }
+  </style>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyBzjHG-VvF4xo4Wp6JQBLD3hQy5sbbd-so",
+    authDomain: "berkas-kakan-hani.firebaseapp.com",
+    databaseURL: "https://berkas-kakan-hani-default-rtdb.firebaseio.com",
+    projectId: "berkas-kakan-hani",
+    storageBucket: "berkas-kakan-hani.firebasestorage.app",
+    messagingSenderId: "280929581790",
+    appId: "1:280929581790:web:0c3dbd711f0fea876f604f"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+</script>
+
+</head>
+<body>
+  <div class="header">
+    <div class="header-content">
+      <h1>Aplikasi Berkas Masuk Kakan by H@nie</h1>
+    </div>
+    <img src="bpn_logo.png" alt="Logo BPN" class="logo" onerror="this.style.display='none'" />
+  </div>
+  <div class="controls">
+    <div>
+      <button onclick="startInput()">➕ Input Berkas</button>
+      <button onclick="exportToExcel()">📥 Export ke Excel</button>
+      <button onclick="exportToJSON()">📄 Export JSON</button>
+    <label style="cursor:pointer;">
+      📂 Import JSON
+      <input type="file" accept=".json" onchange="importFromJSON(event)" style="display:none">
+    </label>
+    <button onclick="window.print()">🖨️ Cetak PDF</button>
+    <button onclick="logout()">🚪 Logout</button>
+      <button onclick="toggleSort()">↕️ Urutkan Tanggal</button>
+    </div>
+    <div>
+      <label for="perPage">Tampilkan:</label>
+      <select id="perPage" onchange="updateTabel()">
+        <option value="50">50</option>
+        <option value="100">100</option>
+      </select>
+      <input type="text" id="cariInput" placeholder="Cari No Berkas" onkeypress="handleCariEnter(event)" />
+      <button onclick="cariBerkas()">🔍 Cari</button>
+    </div>
+  </div>
+
+  <div class="input-row">
+    <input type="text" id="noBerkasInput" placeholder="Masukkan No Berkas" onkeypress="handleEnter(event)" style="display:none" />
+    <button id="selesaiBtn" onclick="selesaiInput()" style="display:none">✔️ Selesai Input</button>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>No</th>
+        <th>No Berkas</th>
+        <th>Tanggal Masuk</th>
+        <th>Tanggal Selesai</th>
+        <th>Keterangan</th>
+        <th>Aksi</th>
+      </tr>
+    </thead>
+    <tbody id="tabelData"></tbody>
+  </table>
+
+  <div class="pagination" id="paginationContainer"></div>
+<script>
+const hari = ["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"];
+const bulan = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+let currentPage = 1;
+let urutTerbaruDulu = true;
+
+function toggleSort() {
+  urutTerbaruDulu = !urutTerbaruDulu;
+  updateTabel();
+}
+
+let berkasData = []
+
+function formatTanggal(t) {
+  const d = new Date(t);
+  return hari[d.getDay()] + ", " + d.getDate() + " " + bulan[d.getMonth()] + " " + d.getFullYear();
+}
+
+function simpanData() {
+  db.ref('berkasGlobal').set(berkasData);
+}
+
+function updateTabel(data = berkasData) {
+  const tbody = document.getElementById('tabelData');
+  tbody.innerHTML = '';
+  const perPage = parseInt(document.getElementById("perPage").value);
+  const totalPages = Math.ceil(data.length / perPage);
+  const start = (currentPage - 1) * perPage;
+  const end = start + perPage;
+  const pageData = data.slice(start, end);
+
+  pageData.sort((a, b) => {
+    const aDate = new Date(a.tglMasuk);
+    const bDate = new Date(b.tglMasuk);
+    return urutTerbaruDulu ? bDate - aDate : aDate - bDate;
+  });
+  pageData.forEach((item, visualIndex) => {
+    const realIndex = berkasData.indexOf(item);
+    let rowClass = item.isBaru ? 'baru' : (item.keterangan.includes('Revisi') ? 'revisi' : (item.tglSelesai ? 'selesai' : ''));
+    const row = document.createElement('tr');
+    row.className = rowClass;
+    row.innerHTML = `
+      <td>${start + visualIndex + 1}</td>
+      <td>${item.noBerkas}</td>
+      <td>${formatTanggal(item.tglMasuk)}</td>
+      <td>${item.tglSelesai ? formatTanggal(item.tglSelesai) : ''}</td>
+      <td>${item.keterangan}</td>
+      <td>
+        <button onclick="setSelesai(${realIndex})">✅ Selesai</button>
+        <button onclick="setRevisi(${realIndex})">🔁 Revisi</button>
+        <button onclick="editKetik(${realIndex})">✏️ Edit</button>
+        <button onclick="hapusBerkas(${realIndex})">❌ Hapus</button>
+      </td>
+    `;
+    tbody.appendChild(row);
+  });
+
+  renderPagination(totalPages);
+  simpanData();
+}
+
+function renderPagination(total) {
+  const container = document.getElementById("paginationContainer");
+  container.innerHTML = '';
+  for (let i = 1; i <= total; i++) {
+    const btn = document.createElement("button");
+    btn.textContent = i;
+    btn.onclick = () => {
+      currentPage = i;
+      updateTabel();
+    };
+    if (i === currentPage) btn.style.fontWeight = "bold";
+    container.appendChild(btn);
+  }
+}
+
+function startInput() {
+  document.getElementById('noBerkasInput').style.display = 'inline';
+  document.getElementById('selesaiBtn').style.display = 'inline';
+}
+
+function handleEnter(e) {
+  if (e.key === 'Enter') tambahBerkas();
+}
+
+function handleCariEnter(e) {
+  if (e.key === 'Enter') {
+    cariBerkas();
+    document.getElementById('cariInput').value = '';
+  }
+}
+
+function selesaiInput() {
+  document.getElementById('noBerkasInput').value = '';
+  document.getElementById('noBerkasInput').style.display = 'none';
+  document.getElementById('selesaiBtn').style.display = 'none';
+  berkasData.forEach(item => item.isBaru = false);
+  simpanData();
+  updateTabel();
+}
+
+function tambahBerkas() {
+  const noBerkas = document.getElementById('noBerkasInput').value.trim();
+  if (!noBerkas) return;
+  const tglMasuk = new Date().toISOString();
+  berkasData.push({ noBerkas, tglMasuk, tglSelesai: '', keterangan: '', isBaru: true });
+  updateTabel();
+  document.getElementById('noBerkasInput').value = '';
+}
+
+function setSelesai(i) {
+  berkasData[i].tglSelesai = new Date().toISOString();
+  berkasData[i].keterangan = '';
+  updateTabel();
+}
+
+function setRevisi(i) {
+  const alasan = prompt("Masukkan alasan revisi:");
+  if (alasan) {
+    const tanggal = new Date().toISOString();
+    berkasData[i].keterangan = `Revisi: ${alasan} (${formatTanggal(tanggal)})`;
+    updateTabel();
+  }
+}
+
+function editKetik(i) {
+  const item = berkasData[i];
+  const noBaru = prompt("Edit No Berkas:", item.noBerkas);
+  const tglMasukBaru = prompt("Edit Tanggal Masuk (yyyy-mm-dd):", item.tglMasuk ? item.tglMasuk.slice(0, 10) : "");
+  const tglSelesaiBaru = prompt("Edit Tanggal Selesai (yyyy-mm-dd):", item.tglSelesai ? item.tglSelesai.slice(0, 10) : "");
+  const ketBaru = prompt("Edit Keterangan:", item.keterangan);
+
+  if (noBaru !== null && tglMasukBaru !== null && tglSelesaiBaru !== null && ketBaru !== null) {
+    item.noBerkas = noBaru;
+    item.tglMasuk = tglMasukBaru ? new Date(tglMasukBaru).toISOString() : item.tglMasuk;
+    item.tglSelesai = tglSelesaiBaru ? new Date(tglSelesaiBaru).toISOString() : "";
+    item.keterangan = ketBaru;
+    updateTabel();
+  }
+}
+
+function hapusBerkas(i) {
+  if (confirm("Hapus data ini?")) {
+    berkasData.splice(i, 1);
+    updateTabel();
+  }
+}
+
+
+function cariBerkas() {
+  const keyword = document.getElementById('cariInput').value.toLowerCase().trim();
+  if (!keyword) return updateTabel();
+  const hasil = berkasData.filter(b => b.noBerkas.toLowerCase().includes(keyword));
+  currentPage = 1; // Reset ke halaman 1 saat pencarian
+  console.log("Hasil pencarian:", hasil);
+  updateTabel(hasil);
+  document.getElementById('cariInput').value = '';
+}
+
+
+function exportToExcel() {
+  if (berkasData.length === 0) return alert("Data kosong.");
+  const ws = XLSX.utils.json_to_sheet(berkasData.map((item, i) => ({
+    "No": i + 1,
+    "No Berkas": item.noBerkas,
+    "Tanggal Masuk": formatTanggal(item.tglMasuk),
+    "Tanggal Selesai": item.tglSelesai ? formatTanggal(item.tglSelesai) : "",
+    "Keterangan": item.keterangan
+  })));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Data Berkas");
+
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const namaFile = hari[now.getDay()] + "_" + pad(now.getDate()) + "-" + pad(now.getMonth() + 1) + "-" + now.getFullYear() + "_" + pad(now.getHours()) + pad(now.getMinutes()) + ".xlsx";
+
+  XLSX.writeFile(wb, namaFile);
+}
+
+
+function exportToJSON() {
+  if (berkasData.length === 0) return alert("Data kosong.");
+  const blob = new Blob([JSON.stringify(berkasData, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "berkas.json";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importFromJSON(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const imported = JSON.parse(e.target.result);
+      if (Array.isArray(imported)) {
+        berkasData = imported;
+        simpanData();
+        updateTabel();
+        alert("Data berhasil diimpor.");
+      } else {
+        alert("Format JSON tidak valid.");
+      }
+    } catch (err) {
+      alert("Gagal memuat file JSON.");
+    }
+  };
+  reader.readAsText(file);
+}
+
+function logout() {
+  localStorage.removeItem("login");
+  window.location.href = "login.html";
+}
+
+window.onload = () => updateTabel();
+</script>
+</body>
+</html>
